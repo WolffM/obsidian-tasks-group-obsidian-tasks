@@ -113,7 +113,7 @@ describe('replaceTaskWithTasks', () => {
 
     // --------------------------------------------------------------------------------
 
-    it('uses vault.process so query-view completion can participate in undo history', async () => {
+    it('preserves undo history when completing tasks from query view', async () => {
         const fileContents = '- [ ] Test task\nNot a task';
         const file = Object.assign(new TFile(), {
             path: 'folder/test.md',
@@ -158,6 +158,7 @@ describe('replaceTaskWithTasks', () => {
         });
 
         expect(process).toHaveBeenCalledTimes(1);
+        expect(process.mock.calls[0][0]).toBe(file);
         expect(modify).not.toHaveBeenCalled();
         expect(process.mock.calls[0][1](fileContents)).toEqual(`${toggledTask.toFileLineString()}\nNot a task`);
     });
