@@ -168,7 +168,7 @@ Recommendations:
             ...fileLines.slice(taskLineNumber + 1), // Only supports single-line tasks.
         ];
 
-        await vault.modify(file, updatedFileLines.join('\n'));
+        await vault.process(file, () => updatedFileLines.join('\n'));
     } catch (e) {
         if (e instanceof WarningWorthRetrying) {
             if (e.message) warnAndNotice(e.message);
