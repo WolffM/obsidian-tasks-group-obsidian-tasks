@@ -114,11 +114,11 @@ describe('replaceTaskWithTasks', () => {
     // --------------------------------------------------------------------------------
 
     it('preserves undo history when completing tasks from query view', async () => {
-        const fileContents = '- [ ] Test task\nNot a task';
-        const file = Object.assign(new TFile(), {
-            path: 'folder/test.md',
-            extension: 'md',
-        });
+        const fileContents = `- [ ] Test task
+Not a task`;
+        const file = new TFile();
+        file.path = 'folder/test.md';
+        file.extension = 'md';
         const process = jest.fn(async (_file: TFile, updater: (data: string) => string) => updater(fileContents));
         const modify = jest.fn();
         const vault = {
@@ -160,6 +160,7 @@ describe('replaceTaskWithTasks', () => {
         expect(process).toHaveBeenCalledTimes(1);
         expect(process.mock.calls[0][0]).toBe(file);
         expect(modify).not.toHaveBeenCalled();
-        expect(process.mock.calls[0][1](fileContents)).toEqual(`${toggledTask.toFileLineString()}\nNot a task`);
+        const updater = process.mock.calls[0][1];
+        expect(updater(fileContents)).toEqual(`${toggledTask.toFileLineString()}\nNot a task`);
     });
 });
