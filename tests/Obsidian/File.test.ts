@@ -1,7 +1,14 @@
 import { readFileSync } from 'fs';
 import { verify } from 'approvals/lib/Providers/Jest/JestApprovals';
-import { findLineNumberOfTaskToToggle } from '../../src/Obsidian/File';
+import moment from 'moment';
+import type { ListItemCache, MetadataCache, Vault, Workspace } from 'obsidian';
+import { TFile } from 'obsidian';
+import { findLineNumberOfTaskToToggle, initializeFile, replaceTaskWithTasks } from '../../src/Obsidian/File';
 import type { MockTogglingDataForTesting } from '../../src/lib/MockDataCreator';
+import { fromLine } from '../TestingTools/TestHelpers';
+
+jest.mock('obsidian');
+window.moment = moment;
 
 /**
  * A function to help test File.findLineNumberOfTaskToToggle()
@@ -105,4 +112,55 @@ describe('replaceTaskWithTasks', () => {
     });
 
     // --------------------------------------------------------------------------------
+
+    it('preserves undo history when completing tasks from query view', async () => {
+        const fileContents = `- [ ] Test task
+Not a task`;
+        const file = new TFile();
+        file.path = 'folder/test.md';
+        file.extension = 'md';
+        const process = jest.fn(async (_file: TFile, updater: (data: string) => string) => updater(fileContents));
+        const modify = jest.fn();
+        const vault = {
+            getAbstractFileByPath: jest.fn().mockReturnValue(file),
+            read: jest.fn().mockResolvedValue(fileContents),
+            process,
+            modify,
+        } as unknown as Vault;
+        const metadataCache = {
+            getFileCache: jest.fn().mockReturnValue({
+                listItems: [
+                    {
+                        position: {
+                            start: { line: 0 },
+                        },
+                        task: ' ',
+                    } as ListItemCache,
+                ],
+            }),
+        } as unknown as MetadataCache;
+
+        initializeFile({
+            metadataCache,
+            vault,
+            workspace: {} as Workspace,
+        });
+
+        const originalTask = fromLine({
+            line: '- [ ] Test task',
+            path: 'folder/test.md',
+        });
+        const toggledTask = originalTask.toggle()[0];
+
+        await replaceTaskWithTasks({
+            originalTask,
+            newTasks: toggledTask,
+        });
+
+        expect(process).toHaveBeenCalledTimes(1);
+        expect(process.mock.calls[0][0]).toBe(file);
+        expect(modify).not.toHaveBeenCalled();
+        const updater = process.mock.calls[0][1];
+        expect(updater(fileContents)).toEqual(`${toggledTask.toFileLineString()}\nNot a task`);
+    });
 });
