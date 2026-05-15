@@ -11,6 +11,11 @@ export {};
  */
 export const mockApp = {} as unknown as App;
 
+export class TFile {
+    public path = '';
+    public extension = 'md';
+}
+
 export class MenuItem {
     public title: string | DocumentFragment = '';
     public callback: (evt: MouseEvent | KeyboardEvent) => any;
