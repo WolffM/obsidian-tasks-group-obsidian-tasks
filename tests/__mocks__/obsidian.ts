@@ -11,6 +11,19 @@ export {};
  */
 export const mockApp = {} as unknown as App;
 
+export class TFile {
+    public path = '';
+    public extension = '';
+    public basename = '';
+
+    constructor(path = '') {
+        this.path = path;
+        const parts = path.split('/').pop()?.split('.') ?? [];
+        this.extension = parts.length > 1 ? parts[parts.length - 1] : '';
+        this.basename = parts.length > 1 ? parts.slice(0, -1).join('.') : parts[0] ?? '';
+    }
+}
+
 export class MenuItem {
     public title: string | DocumentFragment = '';
     public callback: (evt: MouseEvent | KeyboardEvent) => any;

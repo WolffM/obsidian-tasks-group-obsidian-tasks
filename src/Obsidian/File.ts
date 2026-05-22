@@ -1,4 +1,4 @@
-import { type ListItemCache, MetadataCache, Notice, TFile, Vault, Workspace } from 'obsidian';
+import { type Editor, type ListItemCache, MetadataCache, Notice, TFile, Vault, Workspace } from 'obsidian';
 import { GlobalFilter } from '../Config/GlobalFilter';
 import { type MockListItemCache, type MockTask, saveMockDataForTesting } from '../lib/MockDataCreator';
 import type { ListItem } from '../Task/ListItem';
@@ -161,6 +161,14 @@ Recommendations:
 
     try {
         const [taskLineNumber, file, fileLines] = await getTaskAndFileLines(originalTask, vault);
+        const replacementText = newTasks.map((task: ListItem) => task.toFileLineString()).join('\n');
+
+        const editor = findOpenEditorForFile(file, workspace);
+        if (editor && editor.getLine(taskLineNumber) === fileLines[taskLineNumber]) {
+            replaceLineInEditor(editor, taskLineNumber, replacementText);
+            return;
+        }
+
         // Finally, we can insert 1 or more lines over the original task line:
         const updatedFileLines = [
             ...fileLines.slice(0, taskLineNumber),
@@ -182,6 +190,25 @@ Recommendations:
         }
     }
 };
+
+function findOpenEditorForFile(file: TFile, workspace: Workspace): Editor | undefined {
+    const possibleEditors = [
+        workspace.activeEditor,
+        ...workspace.getLeavesOfType('markdown').map((leaf) => leaf.view as unknown as { file?: TFile | null; editor?: Editor }),
+    ];
+
+    return possibleEditors.find((candidate) => candidate?.file?.path === file.path)?.editor;
+}
+
+function replaceLineInEditor(editor: Editor, taskLineNumber: number, replacementText: string) {
+    const replacementTextIsNonEmpty = replacementText.length > 0;
+    const taskIsOnLastLine = taskLineNumber >= editor.lineCount() - 1;
+    if (replacementTextIsNonEmpty || taskIsOnLastLine) {
+        editor.setLine(taskLineNumber, replacementText);
+    } else {
+        editor.replaceRange('', { line: taskLineNumber, ch: 0 }, { line: taskLineNumber + 1, ch: 0 });
+    }
+}
 
 /*
  * This method returns the line on which `task` is defined, together with the file it is defined in, and the
