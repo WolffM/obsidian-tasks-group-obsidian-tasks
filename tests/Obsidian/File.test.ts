@@ -119,7 +119,8 @@ describe('replaceTaskWithTasks', () => {
 
             public replaceRange(text: string, from: { line: number }, to: { line: number }) {
                 this.history.push([...this.lines]);
-                this.lines.splice(from.line, to.line - from.line, ...text.split('\n').filter((line) => line.length > 0));
+                const replacementLines = text === '' ? [] : text.split('\n');
+                this.lines.splice(from.line, to.line - from.line, ...replacementLines);
             }
         }
 

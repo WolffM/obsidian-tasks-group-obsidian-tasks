@@ -1,4 +1,14 @@
-import { type Editor, type ListItemCache, MetadataCache, Notice, TFile, Vault, Workspace } from 'obsidian';
+import {
+    type Editor,
+    type ListItemCache,
+    type MarkdownFileInfo,
+    MetadataCache,
+    Notice,
+    TFile,
+    Vault,
+    type View,
+    Workspace,
+} from 'obsidian';
 import { GlobalFilter } from '../Config/GlobalFilter';
 import { type MockListItemCache, type MockTask, saveMockDataForTesting } from '../lib/MockDataCreator';
 import type { ListItem } from '../Task/ListItem';
@@ -192,14 +202,21 @@ Recommendations:
 };
 
 function findOpenEditorForFile(file: TFile, workspace: Workspace): Editor | undefined {
-    const possibleEditors = [
-        workspace.activeEditor,
-        ...workspace
-            .getLeavesOfType('markdown')
-            .map((leaf) => leaf.view as unknown as { file?: TFile | null; editor?: Editor }),
-    ];
+    const possibleEditors: Array<Pick<MarkdownFileInfo, 'file' | 'editor'>> = [];
+    if (workspace.activeEditor) {
+        possibleEditors.push(workspace.activeEditor);
+    }
+    const leafEditors = workspace
+        .getLeavesOfType('markdown')
+        .map((leaf) => leaf.view)
+        .filter(isViewWithMarkdownFileInfo);
+    possibleEditors.push(...leafEditors);
 
     return possibleEditors.find((candidate) => candidate?.file?.path === file.path)?.editor;
+}
+
+function isViewWithMarkdownFileInfo(view: View): view is View & Pick<MarkdownFileInfo, 'file' | 'editor'> {
+    return 'file' in view || 'editor' in view;
 }
 
 function replaceLineInEditor(editor: Editor, taskLineNumber: number, replacementText: string) {

@@ -20,7 +20,7 @@ export class TFile {
         this.path = path;
         const parts = path.split('/').pop()?.split('.') ?? [];
         this.extension = parts.length > 1 ? parts[parts.length - 1] : '';
-        this.basename = parts.length > 1 ? parts.slice(0, -1).join('.') : parts[0] ?? '';
+        this.basename = parts.length > 1 ? parts.slice(0, -1).join('.') : path.split('/').pop() ?? '';
     }
 }
 
