@@ -203,9 +203,9 @@ function findOpenEditorForFile(file: TFile, workspace: Workspace): Editor | unde
 }
 
 function replaceLineInEditor(editor: Editor, taskLineNumber: number, replacementText: string) {
-    const replacementTextIsNonEmpty = replacementText.length > 0;
     const taskIsOnLastLine = taskLineNumber >= editor.lineCount() - 1;
-    if (replacementTextIsNonEmpty || taskIsOnLastLine) {
+    const shouldKeepLineAndReplaceItsContents = replacementText.length > 0 || taskIsOnLastLine;
+    if (shouldKeepLineAndReplaceItsContents) {
         editor.setLine(taskLineNumber, replacementText);
     } else {
         editor.replaceRange('', { line: taskLineNumber, ch: 0 }, { line: taskLineNumber + 1, ch: 0 });
