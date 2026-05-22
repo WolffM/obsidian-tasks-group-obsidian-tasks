@@ -216,7 +216,7 @@ function findOpenEditorForFile(file: TFile, workspace: Workspace): Editor | unde
 }
 
 function isViewWithMarkdownFileInfo(view: View): view is View & Pick<MarkdownFileInfo, 'file' | 'editor'> {
-    return 'file' in view || 'editor' in view;
+    return 'file' in view && 'editor' in view;
 }
 
 function replaceLineInEditor(editor: Editor, taskLineNumber: number, replacementText: string) {
