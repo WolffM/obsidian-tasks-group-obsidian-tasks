@@ -194,7 +194,9 @@ Recommendations:
 function findOpenEditorForFile(file: TFile, workspace: Workspace): Editor | undefined {
     const possibleEditors = [
         workspace.activeEditor,
-        ...workspace.getLeavesOfType('markdown').map((leaf) => leaf.view as unknown as { file?: TFile | null; editor?: Editor }),
+        ...workspace
+            .getLeavesOfType('markdown')
+            .map((leaf) => leaf.view as unknown as { file?: TFile | null; editor?: Editor }),
     ];
 
     return possibleEditors.find((candidate) => candidate?.file?.path === file.path)?.editor;
