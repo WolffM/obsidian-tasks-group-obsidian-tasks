@@ -6,7 +6,6 @@ import type { MockTogglingDataForTesting } from '../../src/lib/MockDataCreator';
 import { TaskBuilder } from '../TestingTools/TaskBuilder';
 
 jest.mock('obsidian');
-window.moment = moment;
 
 /**
  * A function to help test File.findLineNumberOfTaskToToggle()
@@ -113,6 +112,10 @@ describe('replaceTaskWithTasks', () => {
 });
 
 describe('replaceTaskWithTasks with open editor', () => {
+    beforeAll(() => {
+        window.moment = moment;
+    });
+
     it('should prefer the open editor for task updates, preserving editor undo history', async () => {
         const originalTask = new TaskBuilder().path('tasks.md').lineNumber(0).description('Test task').build();
         const toggledTasks = originalTask.toggleWithRecurrenceInUsersOrder();

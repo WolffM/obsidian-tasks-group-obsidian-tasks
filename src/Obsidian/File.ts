@@ -110,6 +110,10 @@ function replaceTaskInOpenEditorIfPossible(originalTask: ListItem, newTasks: Lis
     return true;
 }
 
+function isMarkdownFileInfoWithEditor(view: unknown): view is MarkdownFileInfo & { editor: Editor } {
+    return typeof view === 'object' && view !== null && 'file' in view && 'editor' in view;
+}
+
 function findOpenEditorForTaskPath(path: string, workspace: Workspace): Editor | undefined {
     const activeEditor = workspace.activeEditor;
     if (activeEditor?.file?.path === path && activeEditor.editor) {
@@ -118,8 +122,8 @@ function findOpenEditorForTaskPath(path: string, workspace: Workspace): Editor |
 
     const markdownLeaves = workspace.getLeavesOfType?.('markdown') ?? [];
     for (const leaf of markdownLeaves) {
-        const view = leaf.view as unknown as MarkdownFileInfo;
-        if (view.file?.path === path && view.editor) {
+        const { view } = leaf;
+        if (isMarkdownFileInfoWithEditor(view) && view.file?.path === path) {
             return view.editor;
         }
     }
