@@ -1,7 +1,21 @@
 import { readFileSync } from 'fs';
+import moment from 'moment';
+import { TFile } from 'obsidian';
 import { verify } from 'approvals/lib/Providers/Jest/JestApprovals';
-import { findLineNumberOfTaskToToggle } from '../../src/Obsidian/File';
+import { findLineNumberOfTaskToToggle, initializeFile, replaceTaskWithTasks } from '../../src/Obsidian/File';
 import type { MockTogglingDataForTesting } from '../../src/lib/MockDataCreator';
+import { TaskBuilder } from '../TestingTools/TaskBuilder';
+
+window.moment = moment;
+
+beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-05-22'));
+});
+
+afterEach(() => {
+    jest.useRealTimers();
+});
 
 /**
  * A function to help test File.findLineNumberOfTaskToToggle()
@@ -77,6 +91,93 @@ function testFindLineNumberOfTaskToToggle(
 }
 
 describe('replaceTaskWithTasks', () => {
+    it('should update an open editor so the change can be undone', async () => {
+        class MockEditor {
+            public readonly undo = jest.fn(() => {
+                const previousLines = this.history.pop();
+                if (previousLines) {
+                    this.lines = previousLines;
+                }
+            });
+
+            private history: string[][] = [];
+
+            constructor(public lines: string[]) {}
+
+            public getLine(line: number) {
+                return this.lines[line];
+            }
+
+            public lineCount() {
+                return this.lines.length;
+            }
+
+            public setLine(line: number, text: string) {
+                this.history.push([...this.lines]);
+                this.lines.splice(line, 1, ...text.split('\n'));
+            }
+
+            public replaceRange(text: string, from: { line: number }, to: { line: number }) {
+                this.history.push([...this.lines]);
+                const replacementLines = text === '' ? [] : text.split('\n');
+                this.lines.splice(from.line, to.line - from.line, ...replacementLines);
+            }
+        }
+
+        const originalTask = new TaskBuilder().path('query.md').lineNumber(1).description('Test task').build();
+        const toggledTask = originalTask.toggleWithRecurrenceInUsersOrder()[0];
+        const file = new TFile();
+        file.path = 'query.md';
+        file.extension = 'md';
+        file.basename = 'query';
+        const lines = ['before', originalTask.originalMarkdown, 'after'];
+        const editor = new MockEditor([...lines]);
+        const vault = {
+            getAbstractFileByPath: jest.fn().mockReturnValue(file),
+            read: jest.fn().mockResolvedValue(lines.join('\n')),
+            modify: jest.fn(),
+        };
+        const metadataCache = {
+            getFileCache: jest.fn().mockReturnValue({
+                listItems: [
+                    {
+                        position: {
+                            start: { line: 1, col: 0, offset: 0 },
+                            end: { line: 1, col: originalTask.originalMarkdown.length, offset: originalTask.originalMarkdown.length },
+                        },
+                        parent: -1,
+                        task: ' ',
+                    },
+                ],
+            }),
+        };
+        const workspace = {
+            activeEditor: {
+                file,
+                editor,
+            },
+            getLeavesOfType: jest.fn().mockReturnValue([]),
+        };
+
+        initializeFile({
+            metadataCache: metadataCache as any,
+            vault: vault as any,
+            workspace: workspace as any,
+        });
+
+        await replaceTaskWithTasks({
+            originalTask,
+            newTasks: toggledTask,
+        });
+
+        expect(editor.getLine(1)).toEqual(toggledTask.toFileLineString());
+        expect(vault.modify).not.toHaveBeenCalled();
+
+        editor.undo();
+
+        expect(editor.getLine(1)).toEqual(originalTask.originalMarkdown);
+    });
+
     it('valid 2-task test', () => {
         const jsonFileName = 'single_task_valid_data.json';
         const taskLineToToggle = '- [ ] #task task 2';
