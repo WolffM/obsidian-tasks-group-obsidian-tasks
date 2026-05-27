@@ -97,12 +97,12 @@ function replaceTaskInOpenEditorIfPossible(originalTask: ListItem, newTasks: Lis
     }
 
     const from = { line: lineNumber, ch: 0 };
-    const replacementText = newTasks.map((task) => task.toFileLineString()).join('\n');
-    const replacementTextIsNonEmpty = replacementText.length > 0;
+    const newTaskLines = newTasks.map((task) => task.toFileLineString()).join('\n');
+    const replacementTextIsNonEmpty = newTaskLines.length > 0;
     const taskIsOnLastLine = lineNumber >= editor.lineCount() - 1;
 
     if (replacementTextIsNonEmpty || taskIsOnLastLine) {
-        editor.replaceRange(replacementText, from, { line: lineNumber, ch: originalLineInEditor.length }, 'tasks');
+        editor.replaceRange(newTaskLines, from, { line: lineNumber, ch: originalLineInEditor.length }, 'tasks');
     } else {
         editor.replaceRange('', from, { line: lineNumber + 1, ch: 0 }, 'tasks');
     }
@@ -111,7 +111,7 @@ function replaceTaskInOpenEditorIfPossible(originalTask: ListItem, newTasks: Lis
 }
 
 function isMarkdownFileInfoWithEditor(view: unknown): view is MarkdownFileInfo & { editor: Editor } {
-    return typeof view === 'object' && view !== null && 'file' in view && !!view.file && 'editor' in view;
+    return typeof view === 'object' && view !== null && 'file' in view && !!view.file && 'editor' in view && !!view.editor;
 }
 
 function findOpenEditorForTaskPath(path: string, workspace: Workspace): Editor | undefined {
