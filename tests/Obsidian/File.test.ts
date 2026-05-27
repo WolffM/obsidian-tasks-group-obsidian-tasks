@@ -1,7 +1,11 @@
 import { readFileSync } from 'fs';
 import { verify } from 'approvals/lib/Providers/Jest/JestApprovals';
-import { findLineNumberOfTaskToToggle } from '../../src/Obsidian/File';
+import moment from 'moment';
+import { findLineNumberOfTaskToToggle, initializeFile, replaceTaskWithTasks } from '../../src/Obsidian/File';
 import type { MockTogglingDataForTesting } from '../../src/lib/MockDataCreator';
+import { TaskBuilder } from '../TestingTools/TaskBuilder';
+
+jest.mock('obsidian');
 
 /**
  * A function to help test File.findLineNumberOfTaskToToggle()
@@ -105,4 +109,73 @@ describe('replaceTaskWithTasks', () => {
     });
 
     // --------------------------------------------------------------------------------
+});
+
+describe('replaceTaskWithTasks with open editor', () => {
+    beforeAll(() => {
+        window.moment = moment;
+    });
+
+    it('should prefer the open editor for task updates, preserving editor undo history', async () => {
+        const originalTask = new TaskBuilder().path('tasks.md').lineNumber(0).description('Test task').build();
+        const toggledTasks = originalTask.toggleWithRecurrenceInUsersOrder();
+        const file = {
+            path: 'tasks.md',
+            extension: 'md',
+        };
+
+        const editor = {
+            getLine: jest.fn().mockReturnValue(originalTask.originalMarkdown),
+            lineCount: jest.fn().mockReturnValue(1),
+            replaceRange: jest.fn(),
+        };
+
+        const workspace = {
+            activeEditor: {
+                file,
+                editor,
+            },
+            getLeavesOfType: jest.fn().mockReturnValue([]),
+        };
+
+        const vault = {
+            getAbstractFileByPath: jest.fn().mockReturnValue(file),
+            read: jest.fn().mockResolvedValue(originalTask.originalMarkdown),
+            modify: jest.fn(),
+        };
+
+        const metadataCache = {
+            getFileCache: jest.fn().mockReturnValue({
+                listItems: [
+                    {
+                        position: {
+                            start: {
+                                line: 0,
+                            },
+                        },
+                        task: {},
+                    },
+                ],
+            }),
+        };
+
+        initializeFile({
+            metadataCache: metadataCache as any,
+            vault: vault as any,
+            workspace: workspace as any,
+        });
+
+        await replaceTaskWithTasks({
+            originalTask,
+            newTasks: toggledTasks,
+        });
+
+        expect(editor.replaceRange).toHaveBeenCalledWith(
+            toggledTasks[0].toFileLineString(),
+            { line: 0, ch: 0 },
+            { line: 0, ch: originalTask.originalMarkdown.length },
+            'tasks',
+        );
+        expect(vault.modify).not.toHaveBeenCalled();
+    });
 });

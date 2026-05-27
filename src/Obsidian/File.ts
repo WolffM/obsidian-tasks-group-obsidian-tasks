@@ -1,4 +1,4 @@
-import { type ListItemCache, MetadataCache, Notice, TFile, Vault, Workspace } from 'obsidian';
+import { type Editor, type ListItemCache, type MarkdownFileInfo, MetadataCache, Notice, TFile, Vault, Workspace } from 'obsidian';
 import { GlobalFilter } from '../Config/GlobalFilter';
 import { type MockListItemCache, type MockTask, saveMockDataForTesting } from '../lib/MockDataCreator';
 import type { ListItem } from '../Task/ListItem';
@@ -66,6 +66,10 @@ export const replaceTaskWithTasks = async ({
     logStartOfTaskEdit(logger, codeLocation, originalTask);
     logEndOfTaskEdit(logger, codeLocation, newTasks);
 
+    if (replaceTaskInOpenEditorIfPossible(originalTask, newTasks, workspace)) {
+        return;
+    }
+
     await tryRepetitive({
         originalTask,
         newTasks,
@@ -75,6 +79,57 @@ export const replaceTaskWithTasks = async ({
         previousTries: 0,
     });
 };
+
+function replaceTaskInOpenEditorIfPossible(originalTask: ListItem, newTasks: ListItem[], workspace: Workspace): boolean {
+    const editor = findOpenEditorForTaskPath(originalTask.path, workspace);
+    if (editor === undefined) {
+        return false;
+    }
+
+    const lineNumber = originalTask.taskLocation.lineNumber;
+    if (lineNumber >= editor.lineCount()) {
+        return false;
+    }
+
+    const originalLineInEditor = editor.getLine(lineNumber);
+    if (originalLineInEditor !== originalTask.originalMarkdown) {
+        return false;
+    }
+
+    const from = { line: lineNumber, ch: 0 };
+    const newTaskLines = newTasks.map((task) => task.toFileLineString()).join('\n');
+    const replacementTextIsNonEmpty = newTaskLines.length > 0;
+    const taskIsOnLastLine = lineNumber >= editor.lineCount() - 1;
+
+    if (replacementTextIsNonEmpty || taskIsOnLastLine) {
+        editor.replaceRange(newTaskLines, from, { line: lineNumber, ch: originalLineInEditor.length }, 'tasks');
+    } else {
+        editor.replaceRange('', from, { line: lineNumber + 1, ch: 0 }, 'tasks');
+    }
+
+    return true;
+}
+
+function isMarkdownFileInfoWithEditor(view: unknown): view is MarkdownFileInfo & { editor: Editor } {
+    return typeof view === 'object' && view !== null && 'file' in view && !!view.file && 'editor' in view && !!view.editor;
+}
+
+function findOpenEditorForTaskPath(path: string, workspace: Workspace): Editor | undefined {
+    const activeEditor = workspace.activeEditor;
+    if (activeEditor?.file?.path === path && activeEditor.editor) {
+        return activeEditor.editor;
+    }
+
+    const markdownLeaves = workspace.getLeavesOfType?.('markdown') ?? [];
+    for (const leaf of markdownLeaves) {
+        const { view } = leaf;
+        if (isMarkdownFileInfoWithEditor(view) && view.file?.path === path) {
+            return view.editor;
+        }
+    }
+
+    return undefined;
+}
 
 /**
  * @todo Unify this with {@link showError} in EditorSuggestorPopup.ts
