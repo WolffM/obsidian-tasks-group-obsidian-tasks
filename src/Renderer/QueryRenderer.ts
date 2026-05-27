@@ -21,6 +21,7 @@ import { TasksFile } from '../Scripting/TasksFile';
 import { DateFallback } from '../DateTime/DateFallback';
 import type { Task } from '../Task/Task';
 import { type BacklinksEventHandler, type EditButtonClickHandler, QueryResultsRenderer } from './QueryResultsRenderer';
+import { resolveQueryFilePath } from './QueryFilePathResolver';
 import { TaskLineRenderer, createAndAppendElement } from './TaskLineRenderer';
 
 type RenderParams = { tasks: Task[]; state: State };
@@ -58,7 +59,7 @@ export class QueryRenderer {
         //  - Multi-line properties are supported, but they cannot contain
         //    continuation lines.
         const app = this.app;
-        const filePath = context.sourcePath;
+        const filePath = resolveQueryFilePath(app, context.sourcePath);
         const tFile = app.vault.getAbstractFileByPath(filePath);
         let fileCache: CachedMetadata | null = null;
         if (tFile && tFile instanceof TFile) {
